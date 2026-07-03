@@ -10,6 +10,8 @@ type ChatMessage = {
   text: string;
   subject?: string;
   concept?: string;
+  manualSubject?: string;
+  manualConcept?: string;
   canSave?: boolean;
   saveStatus?: 'idle' | 'saving' | 'saved';
   saveError?: string;
@@ -122,6 +124,8 @@ export default function Home() {
       text: '',
       subject,
       concept,
+      manualSubject: '',
+      manualConcept: '',
       canSave: false,
       saveStatus: 'idle',
     };
@@ -189,7 +193,9 @@ export default function Home() {
   };
 
   const handleSave = async (message: ChatMessage) => {
-    if (!message.subject || !message.concept) return;
+    const subject = message.subject || message.manualSubject || '';
+    const concept = message.concept || message.manualConcept || '';
+    if (!subject || !concept) return;
 
     setMessages((current) =>
       current.map((item) =>
@@ -197,7 +203,7 @@ export default function Home() {
       ),
     );
 
-    const payload = parseSaveConceptPayload(message.text, message.subject, message.concept);
+    const payload = parseSaveConceptPayload(message.text, subject, concept);
 
     try {
       const saveResponse = await fetch('/api/save-concept', {
@@ -230,18 +236,66 @@ export default function Home() {
     <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} py-2`}> 
       <div className={`${message.role === 'user' ? 'rounded-3xl rounded-br-none bg-sky-700 text-slate-100' : 'rounded-3xl rounded-bl-none bg-slate-900 text-slate-100'} max-w-[80%] px-4 py-3 shadow-sm`}>
         <div className="text-sm leading-7 whitespace-pre-wrap">{message.text || (message.role === 'assistant' ? '...' : '')}</div>
-        {message.role === 'assistant' && message.canSave && message.saveStatus !== 'saved' ? (
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-300">
-            <button
-              type="button"
-              onClick={() => handleSave(message)}
-              className="rounded-full bg-slate-700 px-3 py-1 text-slate-100 transition hover:bg-slate-600"
-            >
-              {message.saveStatus === 'saving' ? 'Saving…' : 'Save progress'}
-            </button>
-            {message.subject && message.concept ? (
-              <span className="text-slate-400">{message.subject} · {message.concept}</span>
-            ) : null}
+        {message.role === 'assistant' && message.saveStatus !== 'saved' ? (
+          <div className="mt-3 rounded-3xl border border-slate-800 bg-slate-950/80 p-4 text-xs text-slate-300">
+            {message.canSave ? (
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSave(message)}
+                  className="rounded-full bg-slate-700 px-3 py-1 text-slate-100 transition hover:bg-slate-600"
+                >
+                  {message.saveStatus === 'saving' ? 'Saving…' : 'Save progress'}
+                </button>
+                {message.subject && message.concept ? (
+                  <span className="text-slate-400">{message.subject} · {message.concept}</span>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-slate-400">No auto-detected concept. Enter a subject and concept to save progress manually.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    value={message.manualSubject ?? ''}
+                    onChange={(event) =>
+                      setMessages((current) =>
+                        current.map((item) =>
+                          item.id === message.id
+                            ? { ...item, manualSubject: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder="Subject"
+                    className="rounded-2xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  />
+                  <input
+                    type="text"
+                    value={message.manualConcept ?? ''}
+                    onChange={(event) =>
+                      setMessages((current) =>
+                        current.map((item) =>
+                          item.id === message.id
+                            ? { ...item, manualConcept: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    placeholder="Concept"
+                    className="rounded-2xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSave(message)}
+                  disabled={!(message.manualSubject?.trim() && message.manualConcept?.trim())}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-slate-700 px-4 text-sm font-semibold text-slate-100 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:bg-slate-800"
+                >
+                  {message.saveStatus === 'saving' ? 'Saving…' : 'Save progress manually'}
+                </button>
+              </div>
+            )}
           </div>
         ) : null}
         {message.role === 'assistant' && message.saveStatus === 'saved' ? (
