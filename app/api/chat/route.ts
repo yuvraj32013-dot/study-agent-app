@@ -23,7 +23,7 @@ type ConceptRow = {
   strong_areas?: string | string[] | null;
 };
 
-const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export const runtime = 'edge';
 
 function formatAreas(value: string | string[] | null | undefined): string | null {
   if (!value) return null;
